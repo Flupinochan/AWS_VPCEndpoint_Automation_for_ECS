@@ -87,9 +87,6 @@ Resources:
       SubnetIds: {subnet_ids}
       SecurityGroupIds: {security_group_ids}
       PrivateDnsEnabled: true
-      Tags:
-        - Key: 'Name'
-          Value: 'CloudWatchLogs-CFn'
 
   ECRApiEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -100,9 +97,6 @@ Resources:
       SubnetIds: {subnet_ids}
       SecurityGroupIds: {security_group_ids}
       PrivateDnsEnabled: true
-      Tags:
-        - Key: 'Name'
-          Value: 'ECRApi-CFn'
 
   ECRDkrEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -113,9 +107,6 @@ Resources:
       SubnetIds: {subnet_ids}
       SecurityGroupIds: {security_group_ids}
       PrivateDnsEnabled: true
-      Tags:
-        - Key: 'Name'
-          Value: 'ECRDkr-CFn'
 """.format(region=REGION, vpc_id=VPC_ID, subnet_ids=SUBNET_IDS, security_group_ids=SECURITY_GROUP_IDS)
 
 
@@ -229,7 +220,7 @@ def wait_for_create_endpoints_complete():
 def lambda_handler_entrypoint(event, context):
 
     # 'create' or 'delete' from StepFunctions Parameters
-    operation = event['operation']
+    operation = event['Payload']['operation']
 
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
 
