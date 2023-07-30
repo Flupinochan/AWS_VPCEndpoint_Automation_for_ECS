@@ -70,6 +70,7 @@ client = boto3.client('cloudformation')
 
 stack_name = 'VPCEndpointsForECS-Stack'
 
+# Please note that tags cannot be attached
 template = """
 Parameters:
   Region:
