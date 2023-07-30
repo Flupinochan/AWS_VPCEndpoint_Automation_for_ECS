@@ -29,22 +29,25 @@ from LoggingClass import LoggingClass
 # Constant Definition
 # ----------------------------------------------------------------------
 
-# Log level (default is INFO)
-LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
+try:
+    # Log level (default is INFO)
+    LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
 
-# Retry counts for client or resource API use
-RETRY_COUNT = int(os.environ.get('RETRY_COUNT', 3))
+    # Retry counts for client or resource API use
+    RETRY_COUNT = int(os.environ.get('RETRY_COUNT', 3))
 
-# Used for VPC Endpoint(CloudFormation)
-VPC_ID = os.environ['VPC_ID']
-SUBNET_IDS = os.environ['SUBNET_IDS'].split(',')
-SECURITY_GROUP_IDS = os.environ['SECURITY_GROUP_IDS'].split(',')
-REGION = os.environ['REGION']
+    # Used for VPC Endpoint(CloudFormation)
+    # Subnets and Security Groups can be specified multiple times, separated by commas
+    VPC_ID = os.environ['VPC_ID']
+    SUBNET_IDS = os.environ['SUBNET_IDS'].split(',')
+    SECURITY_GROUP_IDS = os.environ['SECURITY_GROUP_IDS'].split(',')
+    REGION = os.environ['REGION']
 
-# create or delete
-OPERATION = os.environ['OPERATION']
+    # create or delete
+    OPERATION = os.environ['OPERATION']
 
-
+except KeyError as e:
+    raise Exception("Required environment variable not set : {}".format(e))
 
 # ----------------------------------------------------------------
 # Global Variable Definition
@@ -59,24 +62,10 @@ config = Config(
     }
 )
 
-
-
-# ----------------------------------------------------------------------
-# Logger Configuration
-# ----------------------------------------------------------------------
-
-# Get Logger object. Use this for log output
-
-logger = LoggingClass(LOG_LEVEL)
-log = logger.get_logger()
-
-# Usage Example
-# log.info("Test")
-
 # CloudFormation API & Template
 client = boto3.client('cloudformation')
 
-stack_name = 'VPCEndpointforECS'
+stack_name = 'VPCEndpointsForECS_Stack'
 
 template = """
 Parameters:
@@ -120,6 +109,20 @@ Resources:
 
 
 # ----------------------------------------------------------------------
+# Logger Configuration
+# ----------------------------------------------------------------------
+
+# Get Logger object. Use this for log output
+
+logger = LoggingClass(LOG_LEVEL)
+log = logger.get_logger()
+
+# Usage Example
+# log.info("Test")
+
+
+
+# ----------------------------------------------------------------------
 # Main Process
 # ----------------------------------------------------------------------
 def main():
@@ -130,45 +133,42 @@ def main():
     # create or delete VPC Endpoints
     if OPERATION == 'create':
         create_endpoints()
+
     elif OPERATION == 'delete':
         delete_endpoints()
-
-
 
     log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
 
 
 
-
-
-
-
-
-
+# ----------------------------------------------------------------------
+# Create VPC Endpoints
+# ----------------------------------------------------------------------
 def create_endpoints():
+
+    log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
+
     response = client.create_stack(
         StackName=stack_name,
-        TemplateBody=template,
-        Capabilities=[
-            'CAPABILITY_IAM',
-            'CAPABILITY_NAMED_IAM',
-            'CAPABILITY_AUTO_EXPAND',
-        ],
+        TemplateBody=template
     )
 
+    log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
+
+
+
+# ----------------------------------------------------------------------
+# Delete VPC Endpoints
+# ----------------------------------------------------------------------
 def delete_endpoints():
+
+    log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
+
     response = client.delete_stack(
         StackName=stack_name
     )
 
-
-
-
-
-
-
-
-
+    log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
 
 
 
