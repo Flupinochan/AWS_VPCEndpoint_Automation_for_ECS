@@ -27,6 +27,12 @@ from botocore.exceptions import ClientError, BotoCoreError
 from botocore.config import Config
 from LoggingClass import LoggingClass
 
+## proxy container code 137 out of memory because not alpine
+## ['./run.sh'] or bash -c ./run.sh
+## squid shutdown time must be less than 10 seconds → shutdown_lifetime 1 seconds
+## ECS "stopTimeout": 60
+## other container is essential false
+###### ECS code 137 → stopping by essential true is a specification so stepfunctions catch
 
 
 # ----------------------------------------------------------------------

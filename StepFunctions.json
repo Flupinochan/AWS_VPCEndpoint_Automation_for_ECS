@@ -1,48 +1,54 @@
 {
-  "Comment": "A Hello World example demonstrating various state types of the Amazon States Language",
-  "StartAt": "Create VPC Endpoints for ECS",
-  "States": {
-    "Create VPC Endpoints for ECS": {
-      "Type": "Task",
-      "Resource": "arn:aws:lambda:ap-northeast-1:372524053436:function:CreateVPCEndpoint:$LATEST",
-      "Parameters": {
-        "Payload": {
-          "operation": "create"
-        }
-      },
-      "Next": "Run ECS Task"
-    },
-    "Run ECS Task": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::ecs:runTask.sync",
-      "Parameters": {
-        "LaunchType": "FARGATE",
-        "Cluster": "arn:aws:ecs:ap-northeast-1:372524053436:cluster/nuke-proxy-cluster",
-        "TaskDefinition": "arn:aws:ecs:ap-northeast-1:372524053436:task-definition/nuke_proxy",
-        "NetworkConfiguration": {
-          "AwsvpcConfiguration": {
-            "Subnets": [
-              "subnet-0607641ddc97340f9"
-            ],
-            "SecurityGroups": [
-              "sg-07c3d29c1d47caa36"
-            ],
-            "AssignPublicIp": "ENABLED"
+    "Comment": "This State Machine automatically manages VPC Endpoints for ECS. It first creates necessary VPC Endpoints for ECS, then runs the ECS task, and finally deletes the VPC Endpoints after the task completes",
+    "StartAt": "Create VPC Endpoints for ECS",
+    "States": {
+      "Create VPC Endpoints for ECS": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:ap-northeast-1:372524053436:function:CreateVPCEndpoint:$LATEST",
+        "Parameters": {
+          "Payload": {
+            "operation": "create"
           }
         },
-        "PlatformVersion": "1.4.0"
+        "Next": "Run ECS Task"
       },
-      "Next": "Delete VPC Endpoints for ECS"
-    },
-    "Delete VPC Endpoints for ECS": {
-      "Type": "Task",
-      "Resource": "arn:aws:lambda:ap-northeast-1:372524053436:function:CreateVPCEndpoint:$LATEST",
-      "Parameters": {
-        "Payload": {
-          "operation": "delete"
-        }
+      "Run ECS Task": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::ecs:runTask.sync",
+        "Parameters": {
+          "LaunchType": "FARGATE",
+          "Cluster": "arn:aws:ecs:ap-northeast-1:372524053436:cluster/nuke-proxy-cluster",
+          "TaskDefinition": "arn:aws:ecs:ap-northeast-1:372524053436:task-definition/nuke_proxy",
+          "NetworkConfiguration": {
+            "AwsvpcConfiguration": {
+              "Subnets": [
+                "subnet-0607641ddc97340f9"
+              ],
+              "SecurityGroups": [
+                "sg-07c3d29c1d47caa36"
+              ],
+              "AssignPublicIp": "ENABLED"
+            }
+          },
+          "PlatformVersion": "1.4.0"
+        },
+        "Catch": [
+          {
+            "ErrorEquals": ["States.ALL"],
+            "Next": "Delete VPC Endpoints for ECS"
+          }
+        ],
+        "Next": "Delete VPC Endpoints for ECS"
       },
-      "End": true
+      "Delete VPC Endpoints for ECS": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:ap-northeast-1:372524053436:function:CreateVPCEndpoint:$LATEST",
+        "Parameters": {
+          "Payload": {
+            "operation": "delete"
+          }
+        },
+        "End": true
+      }
     }
-  }
 }
