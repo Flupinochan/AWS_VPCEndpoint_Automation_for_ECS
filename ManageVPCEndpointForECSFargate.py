@@ -9,6 +9,9 @@
     Python 3.10 / For Lambda
 ▼Overview
     Automate the creation and deletion of VPC Endpoints needed for AWS ECS using CloudFormation
+        ・create/delete com.amazonaws.ap-northeast-1.logs    for CloudWatchLogs
+        ・create/delete com.amazonaws.ap-northeast-1.ecr.api for ECR
+        ・create/delete com.amazonaws.ap-northeast-1.ecr.dkr for ECR
 ▼Remarks
     ★Caution
     Gateway endpoints for Amazon S3 must be created in advance and manually
@@ -18,6 +21,7 @@
 import os
 import sys
 import boto3
+import time
 
 from botocore.exceptions import ClientError, BotoCoreError
 from botocore.config import Config
@@ -43,11 +47,10 @@ try:
     SECURITY_GROUP_IDS = os.environ['SECURITY_GROUP_IDS'].split(',')
     REGION = os.environ['REGION']
 
-    # create or delete
-    OPERATION = os.environ['OPERATION']
-
 except KeyError as e:
     raise Exception("Required environment variable not set : {}".format(e))
+
+
 
 # ----------------------------------------------------------------
 # Global Variable Definition
@@ -65,7 +68,7 @@ config = Config(
 # CloudFormation API & Template
 client = boto3.client('cloudformation')
 
-stack_name = 'VPCEndpointsForECS_Stack'
+stack_name = 'VPCEndpointsForECS-Stack'
 
 template = """
 Parameters:
@@ -84,6 +87,9 @@ Resources:
       SubnetIds: {subnet_ids}
       SecurityGroupIds: {security_group_ids}
       PrivateDnsEnabled: true
+      Tags:
+        - Key: 'Name'
+          Value: 'CloudWatchLogs-CFn'
 
   ECRApiEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -94,6 +100,9 @@ Resources:
       SubnetIds: {subnet_ids}
       SecurityGroupIds: {security_group_ids}
       PrivateDnsEnabled: true
+      Tags:
+        - Key: 'Name'
+          Value: 'ECRApi-CFn'
 
   ECRDkrEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -104,6 +113,9 @@ Resources:
       SubnetIds: {subnet_ids}
       SecurityGroupIds: {security_group_ids}
       PrivateDnsEnabled: true
+      Tags:
+        - Key: 'Name'
+          Value: 'ECRDkr-CFn'
 """.format(region=REGION, vpc_id=VPC_ID, subnet_ids=SUBNET_IDS, security_group_ids=SECURITY_GROUP_IDS)
 
 
@@ -125,16 +137,17 @@ log = logger.get_logger()
 # ----------------------------------------------------------------------
 # Main Process
 # ----------------------------------------------------------------------
-def main():
+def main(operation):
 
     # sys._getframe().f_code.co_name) will give the function name
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
 
     # create or delete VPC Endpoints
-    if OPERATION == 'create':
+    if operation == 'create':
         create_endpoints()
+        wait_for_create_endpoints_complete()
 
-    elif OPERATION == 'delete':
+    elif operation == 'delete':
         delete_endpoints()
 
     log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
@@ -150,8 +163,17 @@ def create_endpoints():
 
     response = client.create_stack(
         StackName=stack_name,
-        TemplateBody=template
+        TemplateBody=template,
+        Tags=[
+            {
+                'Key': 'Name',
+                'Value': stack_name
+            }
+        ]
     )
+
+    log.info("create stack name : {}".format(stack_name))
+    log.info("create stack id : {}".format(response['StackId']))
 
     log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
 
@@ -164,9 +186,38 @@ def delete_endpoints():
 
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
 
-    response = client.delete_stack(
+    client.delete_stack(
         StackName=stack_name
     )
+
+    log.info("delete stack name : {}".format(stack_name))
+
+    log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
+
+
+
+# ----------------------------------------------------------------------
+# Wait for create_endpoints() completed(Check CloudFormation Stack Status)
+# ----------------------------------------------------------------------
+def wait_for_create_endpoints_complete():
+
+    log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
+
+    while True:
+        response = client.describe_stacks(StackName=stack_name)
+        stack_status = response['Stacks'][0]['StackStatus']
+
+        if stack_status == 'CREATE_COMPLETE':
+            log.info('Stack creation completed to create VPC Endpoints')
+            break
+
+        elif 'FAILED' in stack_status or stack_status == 'ROLLBACK_COMPLETE':
+            log.error('Stack creation failed to create VPC Endpoints')
+            break
+
+        else:
+            log.debug('Stack creation in progress...')
+            time.sleep(30)
 
     log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
 
@@ -177,10 +228,13 @@ def delete_endpoints():
 # ----------------------------------------------------------------------
 def lambda_handler_entrypoint(event, context):
 
+    # 'create' or 'delete' from StepFunctions Parameters
+    operation = event['operation']
+
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
 
     try:
-        main()
+        main(operation)
 
     except ClientError as e:
         # Error handling for AWS API
