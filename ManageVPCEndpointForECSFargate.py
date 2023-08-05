@@ -9,9 +9,9 @@
     Python 3.10 / For Lambda
 ▼Overview
     Automate the creation and deletion of VPC Endpoints needed for AWS ECS using CloudFormation
-        ・create/delete com.amazonaws.ap-northeast-1.logs    for CloudWatchLogs
-        ・create/delete com.amazonaws.ap-northeast-1.ecr.api for ECR
-        ・create/delete com.amazonaws.ap-northeast-1.ecr.dkr for ECR
+        ・create/delete com.amazonaws.{region_name}.logs for CloudWatchLogs
+        ・create/delete com.amazonaws.{region_name}.ecr.api for ECR
+        ・create/delete com.amazonaws.{region_name}.ecr.dkr for ECR
 ▼Remarks
     ★Caution
     Gateway endpoints for Amazon S3 must be created in advance and manually
@@ -27,12 +27,6 @@ from botocore.exceptions import ClientError, BotoCoreError
 from botocore.config import Config
 from LoggingClass import LoggingClass
 
-## proxy container code 137 out of memory because not alpine
-## ['./run.sh'] or bash -c ./run.sh
-## squid shutdown time must be less than 10 seconds → shutdown_lifetime 1 seconds
-## ECS "stopTimeout": 60
-## other container is essential false
-###### ECS code 137 → stopping by essential true is a specification so stepfunctions catch
 
 
 # ----------------------------------------------------------------------
