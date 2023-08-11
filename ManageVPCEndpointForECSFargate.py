@@ -1,6 +1,6 @@
 """
 ▼Title
-    Automation VPC Endpoints
+    Automation VPC Endpoints for ECS
 ▼Author
     Flupinochan
 ▼Version
@@ -68,9 +68,8 @@ config = Config(
 # CloudFormation API & Template
 client = boto3.client('cloudformation')
 
-stack_name = 'VPCEndpointsForECS-Stack'
-
 # Please note that tags cannot be attached
+stack_name = 'VPCEndpointsForECS-Stack'
 template = """
 Parameters:
   Region:
@@ -117,7 +116,6 @@ Resources:
 # ----------------------------------------------------------------------
 
 # Get Logger object. Use this for log output
-
 logger = LoggingClass(LOG_LEVEL)
 log = logger.get_logger()
 
@@ -129,7 +127,7 @@ log = logger.get_logger()
 # ----------------------------------------------------------------------
 # Main Process
 # ----------------------------------------------------------------------
-def main(operation):
+def main(operation: str) -> None:
 
     # sys._getframe().f_code.co_name) will give the function name
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
@@ -141,6 +139,7 @@ def main(operation):
 
     elif operation == 'delete':
         delete_endpoints()
+        wait_for_delete_endpoints_complete()
 
     log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
 
@@ -149,7 +148,7 @@ def main(operation):
 # ----------------------------------------------------------------------
 # Create VPC Endpoints
 # ----------------------------------------------------------------------
-def create_endpoints():
+def create_endpoints() -> None:
 
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
 
@@ -174,7 +173,10 @@ def create_endpoints():
 # ----------------------------------------------------------------------
 # Delete VPC Endpoints
 # ----------------------------------------------------------------------
-def delete_endpoints():
+def delete_endpoints() -> None:
+
+    # ★Caution
+    # 
 
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
 
@@ -189,9 +191,9 @@ def delete_endpoints():
 
 
 # ----------------------------------------------------------------------
-# Wait for create_endpoints() completed(Check CloudFormation Stack Status)
+# Wait for create_endpoints() completed (Check CloudFormation Stack Status)
 # ----------------------------------------------------------------------
-def wait_for_create_endpoints_complete():
+def wait_for_create_endpoints_complete() -> None:
 
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
 
@@ -209,6 +211,33 @@ def wait_for_create_endpoints_complete():
 
         else:
             log.debug('Stack creation in progress...')
+            time.sleep(30)
+
+    log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
+
+
+
+# ----------------------------------------------------------------------
+# Wait for delete_endpoints() completed (Check CloudFormation Stack Status)
+# ----------------------------------------------------------------------
+def wait_for_delete_endpoints_complete() -> None:
+
+    log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
+
+    while True:
+        response = client.describe_stacks(StackName=stack_name)
+        stack_status = response['Stacks'][0]['StackStatus']
+
+        if 'DELETE_COMPLETE' in stack_status:
+            log.info('Stack deletion completed for VPC Endpoints')
+            break
+
+        elif 'DELETE_FAILED' in stack_status:
+            log.error('Stack deletion failed for VPC Endpoints')
+            break
+
+        else:
+            log.debug('Stack deletion in progress...')
             time.sleep(30)
 
     log.debug("{}() Process end".format(sys._getframe().f_code.co_name))

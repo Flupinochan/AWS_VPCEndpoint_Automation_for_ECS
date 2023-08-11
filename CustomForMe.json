@@ -1,59 +1,65 @@
 {
-    "Comment": "This State Machine automatically manages VPC Endpoints for ECS. It first creates necessary VPC Endpoints for ECS, then runs the ECS task, and finally deletes the VPC Endpoints after the task completes",
-    "StartAt": "Create VPC Endpoints for ECS",
-    "States": {
-      "Create VPC Endpoints for ECS": {
-        "Type": "Task",
-        "Resource": "Lambda ARN:$LATEST",
-        "Parameters": {
-          "Payload": {
-            "operation": "create"
+  "Comment": "This State Machine automatically manages VPC Endpoints for ECS. It first creates necessary VPC Endpoints for ECS, then runs the ECS task, and finally deletes the VPC Endpoints after the task completes",
+  "StartAt": "Create VPC Endpoints for ECS",
+  "States": {
+    "Create VPC Endpoints for ECS": {
+      "Type": "Task",
+      "Resource": "Lambda_ARN(ManageVPCEndpointForECSFargate.py):$LATEST",
+      "Parameters": {
+        "Payload": {
+          "operation": "create"
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Delete VPC Endpoints for ECS"
+        }
+      ],
+      "Next": "Run ECS Task"
+    },
+    "Run ECS Task": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "Cluster": "ECS_Cluster_ARN",
+        "TaskDefinition": "ECS_TaskDefinition_ARN",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              "ECS_PublicSubnet"
+            ],
+            "SecurityGroups": [
+              "ECS_SecurityGroup"
+            ],
+            "AssignPublicIp": "ENABLED"
           }
         },
-        "Next": "Run ECS Task"
+        "PlatformVersion": "1.4.0"
       },
-      "Run ECS Task": {
-        "Type": "Task",
-        "Resource": "arn:aws:states:::ecs:runTask.sync",
-        "Parameters": {
-          "LaunchType": "FARGATE",
-          "Cluster": "ECS Cluster ARN",
-          "TaskDefinition": "ECS Task Definition ARN",
-          "NetworkConfiguration": {
-            "AwsvpcConfiguration": {
-              "Subnets": [
-                "subnet-0607641ddc97340f9"
-              ],
-              "SecurityGroups": [
-                "sg-07c3d29c1d47caa36"
-              ],
-              "AssignPublicIp": "ENABLED"
-            }
-          },
-          "PlatformVersion": "1.4.0"
-        },
-        "Catch": [
-          {
-            "ErrorEquals": ["States.ALL"],
-            "Next": "Delete VPC Endpoints for ECS"
-          }
-        ],
-        "Next": "Delete VPC Endpoints for ECS"
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Delete VPC Endpoints for ECS"
+        }
+      ],
+      "Next": "Delete VPC Endpoints for ECS"
+    },
+    "Delete VPC Endpoints for ECS": {
+      "Type": "Task",
+      "Resource": "Lambda_ARN(ManageVPCEndpointForECSFargate.py):$LATEST",
+      "Parameters": {
+        "Payload": {
+          "operation": "delete"
+        }
       },
-      "Delete VPC Endpoints for ECS": {
-        "Type": "Task",
-        "Resource": "Lambda ARN:$LATEST",
-        "Parameters": {
-          "Payload": {
-            "operation": "delete"
-          }
-        },
-        "Next": "Send Logs"
-      },
-      "Send Logs": {
-        "Type": "Task",
-        "Resource": "Lambda ARN:$LATEST",
-        "End": true
-      }
+      "Next": "Send Logs"
+    },
+    "Send Logs": {
+      "Type": "Task",
+      "Resource": "Lambda_ARN(SNS):$LATEST",
+      "End": true
     }
+  }
 }

@@ -4,12 +4,18 @@
     "States": {
       "Create VPC Endpoints for ECS": {
         "Type": "Task",
-        "Resource": "arn:aws:lambda:ap-northeast-1:372524053436:function:CreateVPCEndpoint:$LATEST",
+        "Resource": "Lambda_ARN(ManageVPCEndpointForECSFargate.py):$LATEST",
         "Parameters": {
           "Payload": {
             "operation": "create"
           }
         },
+        "Catch": [
+          {
+            "ErrorEquals": ["States.ALL"],
+            "Next": "Delete VPC Endpoints for ECS"
+          }
+        ],
         "Next": "Run ECS Task"
       },
       "Run ECS Task": {
@@ -17,15 +23,15 @@
         "Resource": "arn:aws:states:::ecs:runTask.sync",
         "Parameters": {
           "LaunchType": "FARGATE",
-          "Cluster": "arn:aws:ecs:ap-northeast-1:372524053436:cluster/nuke-proxy-cluster",
-          "TaskDefinition": "arn:aws:ecs:ap-northeast-1:372524053436:task-definition/nuke_proxy",
+          "Cluster": "ECS_Cluster_ARN",
+          "TaskDefinition": "ECS_TaskDefinition_ARN",
           "NetworkConfiguration": {
             "AwsvpcConfiguration": {
               "Subnets": [
-                "subnet-0607641ddc97340f9"
+                "ECS_PublicSubnet"
               ],
               "SecurityGroups": [
-                "sg-07c3d29c1d47caa36"
+                "ECS_SecurityGroup"
               ],
               "AssignPublicIp": "ENABLED"
             }
@@ -42,7 +48,7 @@
       },
       "Delete VPC Endpoints for ECS": {
         "Type": "Task",
-        "Resource": "arn:aws:lambda:ap-northeast-1:372524053436:function:CreateVPCEndpoint:$LATEST",
+        "Resource": "Lambda_ARN(ManageVPCEndpointForECSFargate.py):$LATEST",
         "Parameters": {
           "Payload": {
             "operation": "delete"
