@@ -205,13 +205,14 @@ def wait_for_create_endpoints_complete() -> None:
             log.info('Stack creation completed to create VPC Endpoints')
             break
 
-        elif 'FAILED' in stack_status or stack_status == 'ROLLBACK_COMPLETE':
-            log.error('Stack creation failed to create VPC Endpoints')
-            break
-
-        else:
+        elif stack_status == 'CREATE_IN_PROGRESS':
             log.debug('Stack creation in progress...')
             time.sleep(30)
+
+        else:
+            log.error('Stack creation failed to create VPC Endpoints')
+            log.error(stack_status)
+            break
 
     log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
 
@@ -224,27 +225,40 @@ def wait_for_delete_endpoints_complete() -> None:
 
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
 
-    paginator = client.get_paginator('list_stacks')
+    # Since there is a stack name previously created with the same name, check the deletion status using the stackID
+    response = client.describe_stacks(StackName=stack_name)
+    stack_id = response['Stacks'][0]['StackId']
 
-    while True:
-        deleted_stack_found = False
+    loop_status = True
 
-        for page in paginator.paginate(StackStatusFilter=['DELETE_COMPLETE']):
+    while loop_status:
+
+        paginator = client.get_paginator('list_stacks')
+        for page in paginator.paginate():
             for stack in page['StackSummaries']:
-                if stack['StackName'] == stack_name:
-                    deleted_stack_found = True
-                    break
 
-        if deleted_stack_found:
-            log.info('Stack deletion completed to delete VPC Endpoints'.format(stack_name))
-            break
+                if stack['StackId'] == stack_id:
+                    if stack['StackStatus'] == 'DELETE_COMPLETE':
+                        log.info('Stack deletion completed to delete VPC Endpoints')
+                        loop_status = False
 
-        else:
-            log.info('Stack deletion in progress...'.format(stack_name))
-            time.sleep(30)
+                        break
+
+                    elif stack['StackStatus'] == 'DELETE_IN_PROGRESS':
+                        log.debug('Stack deletion in progress...')
+                        time.sleep(30)
+
+                    else:
+                        log.error('Stack deletion failed to deletion VPC Endpoints')
+                        log.error(stack['StackStatus'])
+                        loop_status = False
+
+                        break
+
+            if loop_status == False:
+                break
 
     log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
-
 
 
 # ----------------------------------------------------------------------
