@@ -224,20 +224,23 @@ def wait_for_delete_endpoints_complete() -> None:
 
     log.debug("{}() Process start".format(sys._getframe().f_code.co_name))
 
+    paginator = client.get_paginator('list_stacks')
+
     while True:
-        response = client.describe_stacks(StackName=stack_name)
-        stack_status = response['Stacks'][0]['StackStatus']
+        deleted_stack_found = False
 
-        if 'DELETE_COMPLETE' in stack_status:
-            log.info('Stack deletion completed for VPC Endpoints')
-            break
+        for page in paginator.paginate(StackStatusFilter=['DELETE_COMPLETE']):
+            for stack in page['StackSummaries']:
+                if stack['StackName'] == stack_name:
+                    deleted_stack_found = True
+                    break
 
-        elif 'DELETE_FAILED' in stack_status:
-            log.error('Stack deletion failed for VPC Endpoints')
+        if deleted_stack_found:
+            log.info('Stack deletion completed to delete VPC Endpoints'.format(stack_name))
             break
 
         else:
-            log.debug('Stack deletion in progress...')
+            log.info('Stack deletion in progress...'.format(stack_name))
             time.sleep(30)
 
     log.debug("{}() Process end".format(sys._getframe().f_code.co_name))
